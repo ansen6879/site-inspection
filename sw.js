@@ -1,0 +1,135 @@
+/* 離線快取：整組檔案綁同一個 BUILD，一次快取、一次切換，避免新舊檔案混用。
+ * - 安裝：逐一下載 FILES，並以 HASHES 核對每個檔案的 SHA-256（文字檔換行統一為 LF）；任一不符或失敗即安裝失敗，繼續用舊版。
+ *   （防止網站部署中途或 CDN 快取讓不同檔案來自不同版本）
+ * - 使用：應用程式首頁與檔案一律從同一組快取讀取（離線也能開）；快取沒有的才上網。
+ * - 更新：檔案內容改變 → 執行 `node tools/stamp_build.js` 更新 BUILD 與 HASHES → 瀏覽器偵測 sw.js 改變後安裝新版，
+ *   啟用時只刪除本安裝範圍（scope）的舊快取，頁面收到 controllerchange 後重新載入一次（ui.js）。
+ * BUILD、HASHES 與檔案內容不符時 tests/sw.test.js 會失敗。版本號仍只在使用者說「進版」時調整（version.js）。
+ */
+importScripts('version.js');
+var BUILD = 'dee021341027';
+var HASHES = {
+  'index.html': 'b7ea9aead7cd8fcfeefdce13b34f54d381a2b932674efc5e0a17906b1d0dfcdf',
+  'version.js': 'd7e782866428dcf9598fd0989762549ff76fe016a740bc699b79a90f2feccfa7',
+  'manifest.webmanifest': '03abf154cf68109c211c9b2e14de9faef971c8d954cf5af7e815bb9bb1f0fa31',
+  'css/app.css': '91ca432a9ea57957bc4c1f43b9d05b2c2ab8cd8f5372888916bc8477ac7b04f7',
+  'js/data.js': 'b56e8d4421265f4efde42ae5575c3ad3d9ca6a8538a1ffe752401d29b5a10288',
+  'js/data-mep.js': '3e0b3ad412118b4aeb8b173e4f708405fc4a67400eb598024c4c72bc14d2ee44',
+  'js/engine.js': 'a087d370ffc39cc5ad56a0ffcc5950443b964ac883e7837792c8df8d805c45dc',
+  'js/engine-mep.js': 'b496229b736f40bb8fe5448bbf038059bee2973a148a3a268f2104a9a74a4a14',
+  'js/svg.js': '0da343be338f03bd680a30eaa119c1075ee1e45bf21c72f86505464388313809',
+  'js/svg-mep.js': '639509cf8e146bd879b9bdc019017c8baa218f0950c830da7668e9c1917e9c37',
+  'js/modules.js': '2d683046530796a2628bb4d3a02c599b429f0f40d3474747798919067f9fa941',
+  'js/ui.js': '4a94d5a3bd8f493400a6ae484b98fd2b4c35ffa8df8cb953e44d9906e93fb787',
+  'icons/icon.svg': '3e240325f0360d7e25ff4eae3764ddf98d3268d541f164c435f9195b870670de',
+  'icons/icon-192.png': '5fd59fdd742c87cbd1cfd1eba3b064a07121cf8b7c93a93dd6eb7a78b343323c',
+  'icons/icon-512.png': '0404e3e070cef185afc207aa5770195d03e44359ca0d6c3dc8cb75e707f7a80f',
+  'icons/apple-touch-icon.png': '9f885c4acf7c9ec14a0b6291583b69d87711c608e859dee36b98062378eb5841'
+};
+var FILES = [
+  './', 'index.html', 'version.js', 'manifest.webmanifest', 'css/app.css',
+  'js/data.js', 'js/data-mep.js', 'js/engine.js', 'js/engine-mep.js', 'js/svg.js', 'js/svg-mep.js', 'js/modules.js', 'js/ui.js',
+  'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'
+];
+var SCOPE = self.registration.scope;
+var PREFIX = 'sis-' + SCOPE + '|';
+var CACHE = PREFIX + self.SC_VERSION + '-' + BUILD;
+
+function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
+function digest(name, buf) {
+  var data = buf;
+  if (!/\.png$/i.test(name)) data = new TextEncoder().encode(new TextDecoder('utf-8').decode(buf).replace(/\r\n/g, '\n'));
+  return crypto.subtle.digest('SHA-256', data).then(hex);
+}
+// 安裝：先下載到暫存快取並逐檔核對，全部通過才寫入正式快取；失敗只刪除暫存，不影響目前使用中的快取。
+// 同一 BUILD 的快取修復時若寫入中途失敗，正式快取內只會有同一 BUILD、已核對的正確內容，缺的檔案執行時由 appFile 再核對補回。
+function download(c) {
+  var names = FILES.filter(function (f) { return f !== './'; });
+  return Promise.all(names.map(function (f) {
+    return fetch(new Request(f, { cache: 'reload' })).then(function (res) {
+      if (!res.ok) throw new Error(f + ' HTTP ' + res.status);
+      return res.clone().arrayBuffer().then(function (buf) { return digest(f, buf); }).then(function (h) {
+        if (h !== HASHES[f]) throw new Error(f + ' 內容與 BUILD ' + BUILD + ' 不符');
+        return [f, res];
+      });
+    });
+  })).then(function (pairs) {
+    // 全部核對通過才寫入暫存；首頁同時存為 './'
+    return Promise.all(pairs.map(function (p) {
+      var w = [c.put(p[0], p[1].clone())];
+      if (p[0] === 'index.html') w.push(c.put('./', p[1].clone()));
+      return Promise.all(w);
+    }));
+  });
+}
+function copyAll(from, to) {
+  return from.keys().then(function (rs) {
+    return Promise.all(rs.map(function (r) { return from.match(r).then(function (res) { return to.put(r, res); }); }));
+  });
+}
+// 既有快取是否為完整且內容正確的同一組（鍵名齊全、每檔雜湊相符）
+function cacheComplete(c) {
+  return Promise.all(FILES.map(function (f) {
+    var name = f === './' ? 'index.html' : f;
+    return c.match(f).then(function (res) {
+      if (!res) return false;
+      return res.arrayBuffer().then(function (buf) { return digest(name, buf); }).then(function (h) { return h === HASHES[name]; });
+    });
+  })).then(function (oks) { return oks.every(Boolean); });
+}
+self.addEventListener('install', function (e) {
+  var TMP = CACHE + '#install-' + Date.now();
+  e.waitUntil(caches.open(CACHE).then(function (cur) {
+    return cacheComplete(cur).then(function (ok) {
+      if (ok) return; // 同一 BUILD 已完整且核對無誤（例如 sw.js 只有換行位元組不同）
+      return caches.open(TMP).then(function (tmp) {
+        return download(tmp).then(function () { return copyAll(tmp, cur); });
+      }).then(function () { return caches.delete(TMP); }, function (err) {
+        return caches.delete(TMP).then(function () { throw err; });
+      });
+    });
+  }).then(function () { return self.skipWaiting(); }));
+});
+self.addEventListener('activate', function (e) {
+  e.waitUntil(caches.keys().then(function (keys) {
+    return Promise.all(keys.filter(function (k) {
+      // 只清本範圍的舊版與殘留暫存，以及舊版程式留下、名稱不含範圍的 sis- 快取
+      return (k.indexOf(PREFIX) === 0 && k !== CACHE) || (k.indexOf('sis-') === 0 && k.indexOf('|') < 0);
+    }).map(function (k) { return caches.delete(k); }));
+  }).then(function () { return self.clients.claim(); }));
+});
+// 應用程式檔案（FILES）快取中缺檔時：上網取得並以 HASHES 核對，相符才使用並補進快取，不符則回 504，避免混入其他版本
+function appFile(name, req) {
+  return caches.open(CACHE).then(function (c) {
+    return c.match(req, { ignoreSearch: true }).then(function (hit) {
+      if (hit) return hit;
+      // 網路錯誤、HTTP 錯誤、雜湊不符一律回 504，不把未經核對的回應交給頁面
+      var fail = function () { return new Response('版本不一致或無法取得，請稍後重新開啟', { status: 504, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }); };
+      return fetch(new Request(name, { cache: 'reload' })).then(function (res) {
+        if (!res.ok) return fail();
+        return res.clone().arrayBuffer().then(function (buf) { return digest(name, buf); }).then(function (h) {
+          if (h !== HASHES[name]) return fail();
+          // 已核對的回應：寫入快取失敗不影響本次使用
+          return c.put(name, res.clone()).then(function () { return res; }, function () { return res; });
+        });
+      }).catch(fail); // 標頭後斷線、讀取或雜湊失敗也回 504
+    });
+  });
+}
+self.addEventListener('fetch', function (e) {
+  var url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  var scopePath = new URL(SCOPE).pathname;
+  if (url.pathname.indexOf(scopePath) !== 0) return;
+  var rel = url.pathname.slice(scopePath.length);
+  if (e.request.mode === 'navigate') {
+    // 只有應用程式首頁（範圍根目錄、index.html）回快取首頁；其他路徑照常上網
+    if (rel !== '' && rel !== 'index.html') return;
+    e.respondWith(appFile('index.html', 'index.html'));
+    return;
+  }
+  if (rel === '' ? false : HASHES.hasOwnProperty(rel)) { e.respondWith(appFile(rel, e.request)); return; }
+  e.respondWith(caches.open(CACHE).then(function (c) {
+    return c.match(e.request, { ignoreSearch: true }).then(function (hit) { return hit || fetch(e.request); });
+  }));
+});

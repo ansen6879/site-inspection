@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#1f5fbf">
+<meta name="description" content="現場查驗輔助判定：穿樑、搭接、箍筋、保護層、洩水坡度、導線管佔積率、接地、撒水頭、探測器、無障礙">
+<title>現場查驗小幫手</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="查驗小幫手">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="top">
+  <button id="back" type="button" aria-label="返回" hidden>←</button>
+  <h1 id="title">現場查驗小幫手</h1>
+  <button id="fav" type="button" class="favbtn" aria-label="加入我的最愛" aria-pressed="false" hidden>☆</button>
+</header>
+<main id="app"><noscript>請開啟 JavaScript。</noscript></main>
+<nav class="bot" aria-label="主選單">
+  <a href="#/home"><span class="ni" aria-hidden="true">⌂</span>首頁</a>
+  <a href="#/fav"><span class="ni" aria-hidden="true">★</span>最愛</a>
+  <a href="#/settings"><span class="ni" aria-hidden="true">⚙</span>設定</a>
+  <a href="#/about"><span class="ni" aria-hidden="true">ⓘ</span>說明</a>
+</nav>
+<script src="version.js"></script>
+<script src="js/data.js"></script>
+<script src="js/data-mep.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/engine-mep.js"></script>
+<script src="js/svg.js"></script>
+<script src="js/svg-mep.js"></script>
+<script src="js/modules.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

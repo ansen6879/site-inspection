@@ -1,0 +1,17 @@
+{
+  "name": "現場查驗小幫手",
+  "short_name": "查驗小幫手",
+  "description": "現場查驗輔助判定：土建（穿樑、搭接、箍筋、保護層）、機電（佔積率、接地、撒水頭、探測器、無障礙、給排水）、洩水坡度",
+  "lang": "zh-Hant-TW",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f7f9",
+  "theme_color": "#1f5fbf",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
