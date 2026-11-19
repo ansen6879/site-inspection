@@ -29,11 +29,8 @@
     document.documentElement.classList.toggle('bigtext', !!settings.big);
   }
   applyTheme();
-  // 標題列：軟體開發者與版次（版次取 version.js）
-  document.getElementById('devinfo').textContent = '';
-  document.getElementById('devinfo').appendChild(document.createTextNode('軟體開發者：AnsenTAN'));
-  document.getElementById('devinfo').appendChild(document.createElement('br'));
-  document.getElementById('devinfo').appendChild(document.createTextNode('版次：V' + (window.SC_VERSION || '')));
+  // 標題列：軟體開發與版次（版次取 version.js；冒號對齊見 app.css .devinfo）
+  document.getElementById('devver').textContent = 'V' + (window.SC_VERSION || '');
   var figStyle = document.createElement('style');
   figStyle.textContent = SC.FIG_CSS;
   document.head.appendChild(figStyle);
@@ -420,7 +417,7 @@
       '<h3>判定方式</h3><ul><li>✔ 合格：達到規定值</li><li>▲ 許可差內合格：未達規定值，但在 RC04-7 許可差內；RC04-7 未列的數值項目採 ±5%</li><li>✖ 不合格：超出許可差；彎鉤角度、號數等是非項目不套用許可差</li></ul>' +
       '<p>搭接長度以規範公式計算（無條件進位至 cm），並列出參考圖表值；兩者最多相差 2 cm。參考圖 RC05 梁箍筋間距仍為舊制，本工具依 112年版規範 18.3.4.4（d/4、15cm、6db）。</p>' +
       '<h3>安裝到手機</h3><ul><li>Android（Chrome）：選單 →「安裝應用程式」或「加到主畫面」</li><li>iPhone／iPad（Safari）：分享 →「加入主畫面」</li><li>安裝後不需網路即可使用；有網路時自動更新。</li></ul>' +
-      '<h3>關於</h3><ul><li>開發者：AnsenTAN</li><li>版本：V' + esc(v) + '</li></ul>' +
+      '<h3>關於</h3><ul><li>軟體開發：AnsenTAN</li><li>版次：V' + esc(v) + '</li></ul>' +
       '<p class="foot">現場輔助判定工具，以核定圖說及設計者意見為準。所有計算在本機完成，不上傳任何資料。</p></div>';
   }
 

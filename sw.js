@@ -7,12 +7,12 @@
  * BUILD、HASHES 與檔案內容不符時 tests/sw.test.js 會失敗。版本號仍只在使用者說「進版」時調整（version.js）。
  */
 importScripts('version.js');
-var BUILD = 'a5e63f45cb7b';
+var BUILD = '45f5384c09de';
 var HASHES = {
-  'index.html': 'efdc366b44ac55e4732e7501b9d8bae2412a45da3dddb63c4ed3eba29bd06a9c',
+  'index.html': 'a82db6db7a92eef0bc9cf84a9b9a76fa367c24c7a8ffec361dc8fb66e2b72bca',
   'version.js': '0d3d5ca038b3cc49b93a6111faedde8e8fffc6e0596d8491a6a63a43354bff1b',
   'manifest.webmanifest': '03abf154cf68109c211c9b2e14de9faef971c8d954cf5af7e815bb9bb1f0fa31',
-  'css/app.css': 'b3c447e9ed6e908a1dae5839a9a5cb094cf23bf503f4cc795fe637f7fa10dfb4',
+  'css/app.css': '116cb3dc2617d2504bbc1f6847f9264ad3a0b8a940e8af83c7103eaa02447e85',
   'js/data.js': 'b56e8d4421265f4efde42ae5575c3ad3d9ca6a8538a1ffe752401d29b5a10288',
   'js/data-mep.js': '3e0b3ad412118b4aeb8b173e4f708405fc4a67400eb598024c4c72bc14d2ee44',
   'js/engine.js': 'bb6d0711266179a9fbd13a480dacdad789b7c8bff10b0ffb973fa921d3b34cfa',
@@ -20,7 +20,7 @@ var HASHES = {
   'js/svg.js': 'e5d8ea19a9d6347640cb2bfe2b22de76630b712ba8c9320942e5a67917954a2f',
   'js/svg-mep.js': '639509cf8e146bd879b9bdc019017c8baa218f0950c830da7668e9c1917e9c37',
   'js/modules.js': '3d9ec80cb087dc80cd450b8bc4ab2cf1199932a30d2f5dd48e22ed8f250b04e4',
-  'js/ui.js': 'a898d3696955cc260eeb30f7165d424b7190b6e4776cee4f6e8b54f5cdc443cc',
+  'js/ui.js': '75d320faa08461aaf9dd072920a73e76644e407ccc5a41e19cef6ad962c4d119',
   'icons/icon.svg': '3e240325f0360d7e25ff4eae3764ddf98d3268d541f164c435f9195b870670de',
   'icons/icon-192.png': '5fd59fdd742c87cbd1cfd1eba3b064a07121cf8b7c93a93dd6eb7a78b343323c',
   'icons/icon-512.png': '0404e3e070cef185afc207aa5770195d03e44359ca0d6c3dc8cb75e707f7a80f',
