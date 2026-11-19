@@ -7,20 +7,20 @@
  * BUILD、HASHES 與檔案內容不符時 tests/sw.test.js 會失敗。版本號仍只在使用者說「進版」時調整（version.js）。
  */
 importScripts('version.js');
-var BUILD = 'dee021341027';
+var BUILD = 'a5e63f45cb7b';
 var HASHES = {
-  'index.html': 'b7ea9aead7cd8fcfeefdce13b34f54d381a2b932674efc5e0a17906b1d0dfcdf',
-  'version.js': 'd7e782866428dcf9598fd0989762549ff76fe016a740bc699b79a90f2feccfa7',
+  'index.html': 'efdc366b44ac55e4732e7501b9d8bae2412a45da3dddb63c4ed3eba29bd06a9c',
+  'version.js': '0d3d5ca038b3cc49b93a6111faedde8e8fffc6e0596d8491a6a63a43354bff1b',
   'manifest.webmanifest': '03abf154cf68109c211c9b2e14de9faef971c8d954cf5af7e815bb9bb1f0fa31',
-  'css/app.css': '91ca432a9ea57957bc4c1f43b9d05b2c2ab8cd8f5372888916bc8477ac7b04f7',
+  'css/app.css': 'b3c447e9ed6e908a1dae5839a9a5cb094cf23bf503f4cc795fe637f7fa10dfb4',
   'js/data.js': 'b56e8d4421265f4efde42ae5575c3ad3d9ca6a8538a1ffe752401d29b5a10288',
   'js/data-mep.js': '3e0b3ad412118b4aeb8b173e4f708405fc4a67400eb598024c4c72bc14d2ee44',
-  'js/engine.js': 'a087d370ffc39cc5ad56a0ffcc5950443b964ac883e7837792c8df8d805c45dc',
+  'js/engine.js': 'bb6d0711266179a9fbd13a480dacdad789b7c8bff10b0ffb973fa921d3b34cfa',
   'js/engine-mep.js': 'b496229b736f40bb8fe5448bbf038059bee2973a148a3a268f2104a9a74a4a14',
-  'js/svg.js': '0da343be338f03bd680a30eaa119c1075ee1e45bf21c72f86505464388313809',
+  'js/svg.js': 'e5d8ea19a9d6347640cb2bfe2b22de76630b712ba8c9320942e5a67917954a2f',
   'js/svg-mep.js': '639509cf8e146bd879b9bdc019017c8baa218f0950c830da7668e9c1917e9c37',
-  'js/modules.js': '2d683046530796a2628bb4d3a02c599b429f0f40d3474747798919067f9fa941',
-  'js/ui.js': '4a94d5a3bd8f493400a6ae484b98fd2b4c35ffa8df8cb953e44d9906e93fb787',
+  'js/modules.js': '3d9ec80cb087dc80cd450b8bc4ab2cf1199932a30d2f5dd48e22ed8f250b04e4',
+  'js/ui.js': 'a898d3696955cc260eeb30f7165d424b7190b6e4776cee4f6e8b54f5cdc443cc',
   'icons/icon.svg': '3e240325f0360d7e25ff4eae3764ddf98d3268d541f164c435f9195b870670de',
   'icons/icon-192.png': '5fd59fdd742c87cbd1cfd1eba3b064a07121cf8b7c93a93dd6eb7a78b343323c',
   'icons/icon-512.png': '0404e3e070cef185afc207aa5770195d03e44359ca0d6c3dc8cb75e707f7a80f',

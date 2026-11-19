@@ -199,6 +199,12 @@
     if (angle === 180) return Math.max(4 * d, 6.5);
     return Math.max(6 * d, 7.5);
   }
+  // 繫筋交替：交替＝合格、未交替＝不合格、無繫筋＝不需檢核、未選＝待輸入
+  function altItem(label, v, basis, key) {
+    key = key || 'alt';
+    if (v === 'na') return infoItem(key, label, '無繫筋，不需檢核', basis);
+    return boolItem(key, label, v === 'yes' ? true : v === 'no' ? false : null, basis, '', v === 'yes' ? '交替' : v === 'no' ? '未交替' : '—', '交替');
+  }
   function bendDiaReq(bar) { return (barIndex(bar) <= barIndex('D16') ? 4 : 6) * db(bar); }
 
   function stirrup(i) {
@@ -217,7 +223,13 @@
         items.push(maxItem('s2', '非加密區間距', i.s2, i.d / 2, tolS.plus, '規範 18.3.4.6（d/2）', tolS.src));
         items.push(boolItem('hook', '閉合箍筋彎鉤', isNum(i.hookAngle) ? i.hookAngle >= 135 : null, '規範 18.3.4.3、25.3.2（耐震彎鉤 135°）', '', isNum(i.hookAngle) ? i.hookAngle + '°' : '—', '135°'));
         items.push(minItem('ext', '彎鉤直線延伸長度', i.hookExt, hookExtReq(i.tieBar, 135), pctAllow(hookExtReq(i.tieBar, 135)), '規範 25.3.2；RC04-3（6db 且 ≥ 7.5cm）', '未列於 RC04-7，採 ±5%'));
-        items.push(boolItem('alt', '繫筋 90°／135° 彎鉤交替', i.alternate === 'na' ? null : i.alternate === 'yes', '規範 18.3.4.3（單邊有樓板時 90° 鉤置於樓板側）', i.alternate === 'na' ? '無繫筋' : '', i.alternate === 'yes' ? '交替' : i.alternate === 'no' ? '未交替' : '—', '交替'));
+        if (i.slabSide === 'one') { // 僅一側有樓板：不要求交替，改查 90° 鉤是否在樓板側
+          if (i.hookSide === 'na') items.push(infoItem('alt', '繫筋 90° 鉤置於樓板側', '無繫筋，不需檢核', '規範 18.3.4.3'));
+          else items.push(boolItem('alt', '繫筋 90° 鉤置於樓板側（僅一側有樓板）', i.hookSide === 'slab' ? true : i.hookSide === 'wrong' ? false : null, '規範 18.3.4.3（梁僅一邊有樓板可圍束時，繫筋之 90° 彎鉤應置於有樓板之一側）', '',
+            i.hookSide === 'slab' ? '在樓板側' : i.hookSide === 'wrong' ? '不在樓板側' : '—', '在樓板側'));
+        } else if (i.slabSide === 'both') items.push(altItem('繫筋 90°／135° 彎鉤交替', i.alternate, '規範 18.3.4.3（鉤住同一縱向鋼筋相鄰各繫筋之 90° 與 135° 彎鉤應交替）'));
+        // 樓板條件未選：不預設，先請查驗者確認（決定查交替或查 90° 鉤位置）
+        else items.push(mk({ key: 'alt', label: '繫筋彎鉤配置', status: 'na', unit: '', basis: '規範 18.3.4.3', note: '請先選擇可圍束受繫筋支撐縱筋之樓板（兩側皆有或皆無／僅一側有）' }));
       } else {
         var lim = i.highShear ? Math.min(i.d / 4, 30) : Math.min(i.d / 2, 60);
         derived.smax2 = lim;
@@ -239,7 +251,9 @@
         items.push(maxItem('s2', 'ℓo 範圍外間距', i.s2, s2, tolS.plus, '規範 18.4.5.5（15cm、' + k + 'db 取小值）', tolS.src));
         items.push(boolItem('hook', '閉合箍筋彎鉤', isNum(i.hookAngle) ? i.hookAngle >= 135 : null, '規範 18.4.5.2、25.3.2（耐震彎鉤 135°）', '', isNum(i.hookAngle) ? i.hookAngle + '°' : '—', '135°'));
         items.push(minItem('ext', '彎鉤直線延伸長度', i.hookExt, hookExtReq(i.tieBar, 135), pctAllow(hookExtReq(i.tieBar, 135)), '規範 25.3.2；RC04-3（6db 且 ≥ 7.5cm）', '未列於 RC04-7，採 ±5%'));
-        items.push(boolItem('alt', '相鄰繫筋端部交替', i.alternate === 'na' ? null : i.alternate === 'yes', '規範 18.4.5.2(c)', i.alternate === 'na' ? '無繫筋' : '', i.alternate === 'yes' ? '交替' : i.alternate === 'no' ? '未交替' : '—', '交替'));
+        // 規範 18.4.5.2(c)：沿著縱向鋼筋與沿著斷面周邊，相鄰繫筋端部均應交替（兩方向分別確認）
+        items.push(altItem('沿縱向鋼筋（上下層）相鄰繫筋端部交替', i.altLong, '規範 18.4.5.2(c)', 'altLong'));
+        items.push(altItem('沿斷面周邊相鄰繫筋端部交替', i.altPeri, '規範 18.4.5.2(c)', 'altPeri'));
       } else {
         var sOrd = Math.min(16 * dl, 48 * dt, bmin);
         derived.smax2 = sOrd;
@@ -379,14 +393,22 @@
     var drop = i.L / i.n;
     return { drop: drop, slope: 1 / i.n };
   }
+  // 規定坡度 1/n：n 須為有限正數，否則視為未輸入（不得產生負坡度或無限大坡度）
+  function reqSlope(n) { return isNum(n) && n > 0 && isNum(1 / n) ? 1 / n : NaN; }
+  function reqMissing() {
+    return result([mk({ key: 'n', label: '規定坡度', status: 'na', unit: '', note: '請輸入規定坡度 1/n 的 n（正數）' })], {}, { reqS: NaN });
+  }
   function judgeSlope(s, reqS) {
-    if (!isNum(s)) return 'na';
-    if (s < -EPS) return 'fail';
+    if (!isNum(s) || !isNum(reqS) || reqS <= 0) return 'na';
+    if (s <= 0) return 'fail'; // 規定坡度為正：水平或逆坡一律不合格（不受固定 EPS 與極小門檻影響）
     return judgeMin(s, reqS, pctAllow(reqS));
   }
   // 兩點判定：elevA、elevB 已換算為高程（cm，向上為正），水流 A→B
   function slopeTwoPoint(i) {
-    var drop = i.elevA - i.elevB, s = drop / i.dist, reqS = 1 / i.n;
+    var drop = i.elevA - i.elevB, s = drop / i.dist, reqS = reqSlope(i.n);
+    if (!isNum(reqS)) return reqMissing();
+    // 水平距離須為正數（負距離會把逆坡變成順坡）
+    if (isNum(i.dist) && i.dist <= 0) return result([mk({ key: 'slope', label: '實際坡度（A→B）', status: 'na', unit: '', note: 'A→B 水平距離須為正數' })], {}, { reqS: reqS });
     var items = [mk({ key: 'slope', label: '實際坡度（A→B）', measured: s, required: reqS, unit: 'slope', op: '≥', status: judgeSlope(s, reqS),
       basis: '依圖說規定坡度 1/' + i.n, tolNote: '未列於 RC04-7，採 ±5%', note: s < -EPS ? '逆坡：B 點高於 A 點 ' + r1(-drop) + ' cm' : '落差 ' + r1(drop) + ' cm／距離 ' + r2(i.dist / 100) + ' m' })];
     return result(items, { drop: drop, slope: s }, { pts: [{ name: 'A', x: 0, z: i.elevA }, { name: 'B', x: i.dist, z: i.elevB }], reqS: reqS });
@@ -407,10 +429,17 @@
     return z;
   }
   function slopeProfile(i) {
-    var pts = i.points.filter(function (p) { return isNum(p.x) && isNum(p.r); });
-    var items = [], reqS = 1 / i.n;
-    if (pts.length < 2) return result([infoItem('few', '測點不足', '至少需要 2 個測點')], {}, {});
+    // 只略過完全空白的列；填了距離、讀數或後視其中之一卻不完整的列，整體不判定（避免跳過中間點而假合格）
+    // p.filled：畫面在單位換算前標記「此列有填寫」，換算溢位的列也不會被當成空白略過
+    var pts = i.points.filter(function (p) { return p.filled === true || isNum(p.x) || isNum(p.r) || isNum(p.bs); });
+    var items = [], reqS = reqSlope(i.n);
+    if (!isNum(reqS)) return reqMissing();
+    var bad = pts.filter(function (p) { return !isNum(p.x) || !isNum(p.r) || p.x < 0; });
+    if (bad.length) return result([mk({ key: 'incomplete', label: '測點資料不完整', status: 'na', unit: '', note: '測點 ' + bad.map(function (p) { return p.name; }).join('、') + ' 的距離或讀數未填（距離須 ≥ 0）；請補齊或清空整列' })], {}, { reqS: reqS });
+    if (pts.length < 2) return result([mk({ key: 'few', label: '測點不足', status: 'na', unit: '', note: '至少需要 2 個測點' })], {}, { reqS: reqS });
     var z = toElevations(i.method, pts, i.startElev);
+    // 讀數換算後高程須為有限數值；否則不判定也不出圖（避免圖面點序與區段錯位）
+    if (z.some(function (v) { return !isNum(v); })) return result([mk({ key: 'elev', label: '高程換算', status: 'na', unit: '', note: '測點讀數無法換算為高程，請檢查讀數與轉點後視' })], {}, { reqS: reqS });
     var seg = [];
     for (var k = 1; k < pts.length; k++) {
       var dx = pts[k].x - pts[k - 1].x, s = dx > 0 ? (z[k - 1] - z[k]) / dx : NaN;
@@ -418,22 +447,33 @@
       items.push(mk({ key: 'seg' + k, label: '區段 ' + pts[k - 1].name + '→' + pts[k].name, measured: s, required: reqS, unit: 'slope', op: '≥',
         status: seg[k - 1].st, basis: '依圖說規定坡度 1/' + i.n, tolNote: '未列於 RC04-7，採 ±5%', note: dx > 0 ? (s < -EPS ? '逆坡' : '') : '距離須遞增' }));
     }
-    var ponds = [];
-    for (k = 1; k < pts.length - 1; k++) if (z[k] < z[k - 1] - EPS && z[k] < z[k + 1] - EPS) ponds.push(pts[k].name);
+    var ponds = [], pondIdx = []; // 以點序標記（點名可能重複）
+    for (k = 1; k < pts.length - 1; k++) if (z[k] < z[k - 1] - EPS && z[k] < z[k + 1] - EPS) { ponds.push(pts[k].name); pondIdx.push(k); }
     items.push(boolItem('pond', '積水點（中間低點）', ponds.length === 0, '多點縱斷面檢核', ponds.length ? '測點 ' + ponds.join('、') + ' 低於前後兩點，可能積水' : '', ponds.length ? ponds.join('、') : '無', '無'));
     var L = pts[pts.length - 1].x - pts[0].x, sAll = L > 0 ? (z[0] - z[z.length - 1]) / L : NaN;
     items.push(mk({ key: 'all', label: '整體坡度（首→末）', measured: sAll, required: reqS, unit: 'slope', op: '≥', status: judgeSlope(sAll, reqS), basis: '依圖說規定坡度 1/' + i.n, tolNote: '未列於 RC04-7，採 ±5%' }));
-    return result(items, { z: z, seg: seg, ponds: ponds, sAll: sAll }, { pts: pts.map(function (p, k) { return { name: p.name, x: p.x, z: z[k] }; }), reqS: reqS, seg: seg, ponds: ponds });
+    return result(items, { z: z, seg: seg, ponds: ponds, pondIdx: pondIdx, sAll: sAll }, { pts: pts.map(function (p, k) { return { name: p.name, x: p.x, z: z[k] }; }), reqS: reqS, seg: seg, ponds: ponds, pondIdx: pondIdx });
   }
   // 地坪洩水：各點至落水頭水平距離 → 應高於落水頭之高度
   function slopeFloor(i) {
-    var items = [], reqS = 1 / i.n, rows = [];
+    var items = [], reqS = reqSlope(i.n), rows = [];
+    if (!isNum(reqS)) return reqMissing();
     i.points.forEach(function (p, k) {
-      if (!isNum(p.x)) return;
+      var naRow = function (note) { items.push(mk({ key: 'pt' + k, label: '測點 ' + p.name, status: 'na', unit: '', note: note })); };
+      if (!isNum(p.x)) { if (isNum(p.m) || p.filled === true) naRow('請輸入距落水頭距離'); return; }
+      if (p.x < 0) { naRow('距落水頭距離須 ≥ 0'); return; }
       var need = p.x * reqS;
-      rows.push({ name: p.name, x: p.x, need: need, m: p.m });
-      if (isNum(p.m)) items.push(minItem('pt' + k, '測點 ' + p.name + ' 高於落水頭', p.m, r1(need), pctAllow(need), '依圖說規定坡度 1/' + i.n, '未列於 RC04-7，採 ±5%', '距落水頭 ' + r2(p.x / 100) + ' m'));
-      else items.push(infoItem('pt' + k, '測點 ' + p.name + ' 應高於落水頭', r1(need) + ' cm（距落水頭 ' + r2(p.x / 100) + ' m）'));
+      if (!isNum(need)) { naRow('應有高度超出可計算範圍，請檢查規定坡度與距離'); return; }
+      rows.push({ name: p.name, x: p.x, need: need, m: p.m, key: 'pt' + k });
+      var B = '依圖說規定坡度 1/' + i.n, T = '未列於 RC04-7，採 ±5%', at = '距落水頭 ' + r2(p.x / 100) + ' m';
+      if (!isNum(p.m)) { // 未量測：列出放樣用的應有高度，但整體不可判為合格
+        items.push(mk({ key: 'pt' + k, label: '測點 ' + p.name + ' 高於落水頭', required: need, op: '≥', status: 'na', basis: B, note: '應高於落水頭 ' + r2(need) + ' cm（' + at + '）；尚未輸入實測' }));
+        return;
+      }
+      // 以未進位的應有高度判定（顯示時才格式化）；距離 > 0 時實測不高於落水頭一律不合格
+      var it = minItem('pt' + k, '測點 ' + p.name + ' 高於落水頭', p.m, need, pctAllow(need), B, T, at);
+      if (p.x > 0 && p.m <= 0) it.status = 'fail';
+      items.push(it);
     });
     return result(items, { rows: rows }, { rows: rows, reqS: reqS });
   }
@@ -443,7 +483,7 @@
     ldRaw: ldRaw, developmentLength: developmentLength, tensionLap: tensionLap, compressionLap: compressionLap,
     ldhSeismic: ldhSeismic, ldhGeneral: ldhGeneral, hookExtReq: hookExtReq, bendDiaReq: bendDiaReq,
     beamHole: beamHole, lap: lap, stirrup: stirrup, cover: cover, clearSpacing: clearSpacing, lapZone: lapZone,
-    anchor: anchor, embed: embed, slopeForward: slopeForward, slopeTwoPoint: slopeTwoPoint, slopeProfile: slopeProfile,
+    anchor: anchor, embed: embed, reqSlope: reqSlope, slopeForward: slopeForward, slopeTwoPoint: slopeTwoPoint, slopeProfile: slopeProfile,
     slopeFloor: slopeFloor, toElevations: toElevations,
     // 共用判定工具（機電模組 engine-mep.js 使用）
     _h: { isNum: isNum, mk: mk, minItem: minItem, maxItem: maxItem, boolItem: boolItem, infoItem: infoItem, result: result, EPS: EPS }

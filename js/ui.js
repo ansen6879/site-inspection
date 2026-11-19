@@ -29,6 +29,11 @@
     document.documentElement.classList.toggle('bigtext', !!settings.big);
   }
   applyTheme();
+  // 標題列：軟體開發者與版次（版次取 version.js）
+  document.getElementById('devinfo').textContent = '';
+  document.getElementById('devinfo').appendChild(document.createTextNode('軟體開發者：AnsenTAN'));
+  document.getElementById('devinfo').appendChild(document.createElement('br'));
+  document.getElementById('devinfo').appendChild(document.createTextNode('版次：V' + (window.SC_VERSION || '')));
   var figStyle = document.createElement('style');
   figStyle.textContent = SC.FIG_CSS;
   document.head.appendChild(figStyle);
@@ -53,6 +58,8 @@
     fb.hidden = !favId;
     if (favId) paintStar(fb, isFav(favId));
     fb.dataset.id = favId || '';
+    // 項目頁的標題較長：手機上只在非項目頁顯示開發者與版次（平板一律顯示，見 app.css）
+    document.querySelector('header.top').classList.toggle('in-mod', !!favId);
   }
   function paintStar(b, on) {
     b.textContent = on ? '★' : '☆';
@@ -316,6 +323,8 @@
         var y = window.scrollY, act = document.activeElement && document.activeElement.id;
         buildForm(); window.scrollTo(0, y);
         if (act) { var a = document.getElementById(act); if (a) a.focus({ preventScroll: true }); }
+        // 重建會移除原欄位，部分瀏覽器不發 focusout：依重建後的焦點同步輸入模式
+        clearTimeout(typingTimer); typingTimer = setTimeout(syncTyping, 150);
       }
       compute();
     }
@@ -446,6 +455,103 @@
   });
   window.addEventListener('hashchange', route);
   route();
+
+  // ---------- 輸入模式（手機）：鍵盤開啟時收起底部選單與結果列、縮小標題列，並把輸入中的欄位捲到可見處 ----------
+  // 手機放大字型（網頁整體放大）再加上鍵盤，三條固定列會佔掉約一半畫面（2026-11-19 量測 150%：166/330 px）。
+  // 斷點與 app.css 共用同一條媒體查詢；平板維持原樣
+  var narrowMq = window.matchMedia ? window.matchMedia('(max-width: 699.98px)') : { matches: window.innerWidth < 700 };
+  function isTextField(t) {
+    return !!t && t.tagName === 'INPUT' && !!t.closest('.form') && ['text', 'number', 'search', 'tel', ''].indexOf(t.type || '') >= 0;
+  }
+  // 捲動目標：表格輸入格以所在列為準（欄名在表頭，不把整張表拉回而讓目前格子落到鍵盤下）；一般欄位含標籤
+  function targetOf(t) { return t.closest('.rrow') || t.closest('.fld') || t; }
+  function keepVisible() {
+    var t = document.activeElement;
+    if (!document.body.classList.contains('typing') || !isTextField(t) || !narrowMq.matches) return;
+    var vv = window.visualViewport, vTop = vv ? vv.offsetTop : 0, vBot = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    var hd = document.querySelector('header.top'), hb = hd ? hd.getBoundingClientRect() : null;
+    var top = Math.max(vTop, hb && hb.bottom > vTop ? hb.bottom : vTop) + 6; // 標題列實際底緣與可視區交集
+    var bot = vBot - 8;
+    var r = t.getBoundingClientRect(), g = targetOf(t).getBoundingClientRect();
+    var want = 0;
+    if (g.bottom - g.top > bot - top) {         // 標籤與輸入框放不下：優先保留輸入框
+      if (r.bottom > bot) want = r.bottom - bot; else if (r.top < top) want = r.top - top;
+    } else if (g.bottom > bot) want = g.bottom - bot;
+    else if (g.top < top) want = g.top - top;
+    if (Math.abs(want) > 1) window.scrollBy(0, want);
+  }
+  var rafPending = false, scrollTimers = [], typingTimer = null;
+  function scheduleKeep() {
+    if (rafPending) return;
+    rafPending = true;
+    (window.requestAnimationFrame || setTimeout)(function () { rafPending = false; keepVisible(); });
+  }
+  function cancelScrolls() { scrollTimers.forEach(clearTimeout); scrollTimers = []; }
+  function setTyping(on) {
+    document.body.classList.toggle('typing', on);
+    if (!on) cancelScrolls();
+  }
+  var doneBtn = document.getElementById('doneTyping');
+  var kbSeen = false;   // 已看到鍵盤開啟（可視區明顯縮小）；欄位之間切換時保留
+  var kbClosed = false; // 鍵盤已收起但焦點仍在欄位：延遲同步、斷點變化都不可再自行打開輸入模式
+  var doneHadFocus = false; // 「完成」按鈕最後是否持有焦點（隱藏時瀏覽器會先移除焦點）
+  doneBtn.addEventListener('focus', function () { doneHadFocus = true; });
+  document.addEventListener('focusin', function (e) { if (e.target !== doneBtn) doneHadFocus = false; });
+  function kbRatio() {
+    var vv = window.visualViewport;
+    if (!vv || Math.abs((vv.scale || 1) - 1) > 0.01) return NaN; // 雙指縮放中不判斷鍵盤
+    return vv.height / window.innerHeight;
+  }
+  // 依目前焦點與斷點同步輸入模式（表單重建、斷點變化時呼叫）；焦點在「完成」按鈕上時維持，避免按鈕自己消失
+  function syncTyping() {
+    var a = document.activeElement;
+    // 轉寬畫面時按鈕會被樣式隱藏，瀏覽器可能先把焦點丟回 body：以 doneHadFocus 判斷原本焦點在「完成」，改移到標題
+    if (!narrowMq.matches && (a === doneBtn || ((!a || a === document.body) && doneHadFocus))) {
+      var t = document.getElementById('title'); if (t) t.focus({ preventScroll: true }); a = document.activeElement;
+    }
+    doneHadFocus = a === doneBtn;
+    var on = (isTextField(a) || a === doneBtn) && narrowMq.matches && !kbClosed;
+    setTyping(on);
+    if (on) scheduleKeep();
+  }
+  // 鍵盤開關偵測：可視區高度相對版面高度明顯縮小＝鍵盤開；回復＝鍵盤收起（Android 返回鍵只收鍵盤、焦點仍在欄位）
+  function kbCheck() {
+    if (!narrowMq.matches || !isTextField(document.activeElement)) return;
+    var ratio = kbRatio();
+    if (!(ratio > 0)) return;
+    if (ratio < 0.8) { kbSeen = true; kbClosed = false; if (!document.body.classList.contains('typing')) setTyping(true); }
+    else if (ratio > 0.92 && kbSeen) { kbSeen = false; kbClosed = true; clearTimeout(typingTimer); setTyping(false); }
+  }
+  document.addEventListener('focusin', function (e) {
+    if (!isTextField(e.target) || !narrowMq.matches) return;
+    clearTimeout(typingTimer);
+    cancelScrolls(); // 快速切換欄位時取消前一欄的排程
+    kbClosed = false; // 新一輪輸入
+    var ratio = kbRatio(); if (ratio < 0.8) kbSeen = true; // 鍵盤已開著（欄位之間切換）：沿用並取樣目前尺寸
+    setTyping(true);
+    // 等鍵盤彈出與版面收起後再捲動（執行時再核對目前焦點與斷點）
+    scrollTimers.push(setTimeout(scheduleKeep, 120), setTimeout(scheduleKeep, 400));
+  });
+  document.addEventListener('focusout', function () {
+    // 在欄位之間切換時不閃動：稍候確認焦點已離開所有輸入欄
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(syncTyping, 150);
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () { kbCheck(); scheduleKeep(); });
+    window.visualViewport.addEventListener('scroll', scheduleKeep);
+  }
+  if (narrowMq.addEventListener) narrowMq.addEventListener('change', syncTyping);
+  else if (narrowMq.addListener) narrowMq.addListener(syncTyping); // 較舊的 Safari
+  window.addEventListener('hashchange', function () { setTyping(false); });
+  // 「完成」：收起鍵盤並恢復底部選單與結果列（也是鍵盤偵測失效時的手動退出）
+  doneBtn.addEventListener('click', function () {
+    clearTimeout(typingTimer);
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    kbSeen = false; kbClosed = false;
+    setTyping(false);
+    var t = document.getElementById('title'); if (t) t.focus({ preventScroll: true }); // 焦點移到穩定可見的標題
+  });
 
   // 離線快取
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {

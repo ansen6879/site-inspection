@@ -88,7 +88,12 @@
         { k: 's2', t: 'num', label: '一般區間距', unit: 'cm' },
         { k: 'hookAngle', t: 'seg', label: '彎鉤角度', opts: [['135', '135°'], ['90', '90°'], ['180', '180°']], def: '135' },
         { k: 'hookExt', t: 'num', label: '彎鉤直線延伸長度', unit: 'cm' },
-        { k: 'alternate', t: 'seg', label: '繫筋 90°／135° 交替', opts: [['yes', '交替'], ['no', '未交替'], ['na', '無繫筋']], show: function (v) { return v.frame === 'special'; } },
+        // 規範 18.3.4.3：梁繫筋 90°／135° 交替；但僅一側有樓板圍束時，90° 鉤應置於樓板側
+        { k: 'slabSide', t: 'seg', label: '可圍束受繫筋支撐縱筋之樓板', opts: [['both', '兩側皆有（或皆無）'], ['one', '僅一側有']], hint: '規範 18.3.4.3：僅一側有樓板可圍束受繫筋支撐之縱向鋼筋時，90° 鉤應置於該側', show: function (v) { return v.member === 'beam' && v.frame === 'special'; } },
+        { k: 'alternate', t: 'seg', label: '繫筋 90°／135° 交替', opts: [['yes', '交替'], ['no', '未交替'], ['na', '無繫筋']], show: function (v) { return v.member === 'beam' && v.frame === 'special' && v.slabSide === 'both'; } },
+        { k: 'altLong', t: 'seg', label: '沿縱向鋼筋（上下層）相鄰繫筋端部交替', opts: [['yes', '交替'], ['no', '未交替'], ['na', '無繫筋']], show: function (v) { return v.member === 'column' && v.frame === 'special'; } },
+        { k: 'altPeri', t: 'seg', label: '沿斷面周邊相鄰繫筋端部交替', opts: [['yes', '交替'], ['no', '未交替'], ['na', '無繫筋']], show: function (v) { return v.member === 'column' && v.frame === 'special'; }, hint: '規範 18.4.5.2(c)：兩個方向都須交替' },
+        { k: 'hookSide', t: 'seg', label: '繫筋 90° 鉤位置', opts: [['slab', '在樓板側'], ['wrong', '不在樓板側'], ['na', '無繫筋']], show: function (v) { return v.member === 'beam' && v.frame === 'special' && v.slabSide === 'one'; } },
         { k: 'bendDia', t: 'num', label: '彎曲內直徑（選填）', unit: 'cm' },
         { k: 'nDesign', t: 'num', label: '設計根數（選填）', unit: '支' },
         { k: 'nActual', t: 'num', label: '實際根數（選填）', unit: '支' }
@@ -207,11 +212,13 @@
       onChange: function (v, k) { if (k === 'preset') { var p = D.SLOPE_PRESETS.filter(function (x) { return x.id === v.preset; })[0]; if (p && p.id !== 'custom') v.n = p.n; } },
       run: function (v) {
         var unitCm = v.unit === 'mm' ? 0.1 : v.unit === 'm' ? 100 : 1;
-        if (!(v.n > 0)) return { items: [{ key: 'n', label: '規定坡度', status: 'na', note: '請輸入 n' }], overall: 'na', derived: {}, fig: {} };
+        // 規定坡度與引擎共用同一套檢查（n 須為有限正數）
+        if (!isFinite(E.reqSlope(v.n))) return { items: [{ key: 'n', label: '規定坡度', status: 'na', note: '請輸入規定坡度 1/n 的 n（正數）' }], overall: 'na', derived: {}, fig: {} };
         if (v.mode === 'forward') {
-          var fw = E.slopeForward({ n: v.n, L: v.L * 100 });
-          return { items: [{ key: 'drop', label: '應有落差', status: isFinite(fw.drop) ? 'info' : 'na', note: isFinite(fw.drop) ? '坡度 1/' + v.n + '，長度 ' + v.L + ' m → 落差 ' + E.r1(fw.drop) + ' cm（' + E.r1(fw.drop * 10) + ' mm）' : '請輸入長度' }],
-            overall: 'info', derived: fw, fig: { pts: isFinite(fw.drop) ? [{ name: '起點', x: 0, z: 0 }, { name: '終點', x: v.L * 100, z: -fw.drop }] : [], reqS: 1 / v.n } };
+          var okL = isFinite(v.L) && v.L > 0, fw = okL ? E.slopeForward({ n: v.n, L: v.L * 100 }) : { drop: NaN, slope: E.reqSlope(v.n) };
+          okL = okL && isFinite(fw.drop);
+          return { items: [{ key: 'drop', label: '應有落差', status: okL ? 'info' : 'na', note: okL ? '坡度 1/' + v.n + '，長度 ' + v.L + ' m → 落差 ' + E.r1(fw.drop) + ' cm（' + E.r1(fw.drop * 10) + ' mm）' : '請輸入水平長度（正數）' }],
+            overall: okL ? 'info' : 'na', derived: fw, fig: { pts: okL ? [{ name: '起點', x: 0, z: 0 }, { name: '終點', x: v.L * 100, z: -fw.drop }] : [], reqS: E.reqSlope(v.n), msg: okL ? '' : '請輸入正的水平長度' } };
         }
         if (v.mode === 'two') {
           // 同一站讀兩點：捲尺與水準儀皆為「數字越大越低」
@@ -219,10 +226,11 @@
           return E.slopeTwoPoint({ elevA: z[0], elevB: z[1], dist: v.dist * 100, n: v.n });
         }
         if (v.mode === 'profile') {
-          var pts = (v.pts || []).map(function (p) { return { name: p.name || '?', x: num(p.x, 100), r: num(p.r, unitCm), bs: num(p.bs, unitCm) }; });
+          var filled = function (p, ks) { return ks.some(function (k) { return typeof p[k] === 'number'; }); }; // 換算前判斷是否有填
+          var pts = (v.pts || []).map(function (p) { return { name: p.name || '?', x: num(p.x, 100), r: num(p.r, unitCm), bs: num(p.bs, unitCm), filled: filled(p, ['x', 'r', 'bs']) }; });
           return E.slopeProfile({ method: v.method, n: v.n, points: pts });
         }
-        return E.slopeFloor({ n: v.n, points: (v.fpts || []).map(function (p) { return { name: p.name || '?', x: num(p.x, 100), m: num(p.m, 1) }; }) });
+        return E.slopeFloor({ n: v.n, points: (v.fpts || []).map(function (p) { return { name: p.name || '?', x: num(p.x, 100), m: num(p.m, 1), filled: typeof p.x === 'number' || typeof p.m === 'number' }; }) });
       },
       fig: G.slope, raw: true
     }

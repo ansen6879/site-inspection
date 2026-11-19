@@ -112,7 +112,8 @@
         x += inZone ? s1 : s2;
       }
       if (f.special && isNum(f.x0)) b += dimH(x0, x0 + f.x0 * sc, y0 + bh + 18, '第一支 ' + f.x0, stCls(stOf(r.items, 'x0')));
-      b += text(x0 + L * sc / 2, y0 + bh + 40, (f.special ? '加密區上限 ' + f1(f.smax1) + '，' : '') + '一般區上限 ' + f1(f.smax2) + ' cm', 'lbl sm');
+      var lim = function (x) { return isNum(x) ? f1(x) : '—'; }; // 條件未填時不顯示 NaN
+      b += text(x0 + L * sc / 2, y0 + bh + 40, (f.special ? '加密區上限 ' + lim(f.smax1) + '，' : '') + '一般區上限 ' + lim(f.smax2) + ' cm', 'lbl sm');
       b += hookDetail(W / 2, y0 + bh + 140, r, v);
       return svg(W, y0 + bh + 250, b, '梁箍筋示意圖');
     }
@@ -239,21 +240,28 @@
   // 09 洩水坡度：縱斷面（垂直放大）
   function slope(r) {
     var f = r.fig, W = 640, H = 240, b = '';
+    if (!isNum(f.reqS) || f.reqS <= 0) return svg(W, 80, text(W / 2, 40, '請輸入規定坡度', 'lbl'), '洩水坡度');
     if (f.rows) { // 地坪
-      var rows = f.rows; if (!rows.length) return svg(W, 80, text(W / 2, 40, '請輸入測點', 'lbl'), '地坪洩水');
-      var maxX = Math.max.apply(null, rows.map(function (p) { return p.x; })), maxZ = Math.max.apply(null, rows.map(function (p) { return Math.max(p.need, isNum(p.m) ? p.m : 0); })) || 1;
-      var x0 = 60, sx = (W - 120) / (maxX || 1), sz = 150 / maxZ, base = 200;
+      var rows = f.rows.filter(function (p) { return isNum(p.x) && isNum(p.need); });
+      if (!rows.length) return svg(W, 80, text(W / 2, 40, '請輸入測點距離', 'lbl'), '地坪洩水');
+      // 縱軸同時涵蓋應有高度、實測高度與落水頭（0），實測低於落水頭的點也畫在圖內
+      var hs = [0]; rows.forEach(function (p) { hs.push(p.need); if (isNum(p.m)) hs.push(p.m); });
+      var maxX = Math.max.apply(null, rows.map(function (p) { return p.x; })), hiZ = Math.max.apply(null, hs), loZ = Math.min.apply(null, hs);
+      var x0 = 60, sx = (W - 120) / (maxX || 1), sz = 150 / ((hiZ - loZ) || 1), base = 45 + hiZ * sz; // base＝落水頭高程（0）的 y
       b += line(x0, base, W - 40, base, 'dim') + circle(x0, base, 6, 'drain') + text(x0, base + 20, '落水頭', 'lbl sm');
       rows.forEach(function (p, k) {
-        var x = x0 + p.x * sx, it = r.items[k], st = it ? it.status : 'na';
+        var x = x0 + p.x * sx, it = r.items.filter(function (i) { return i.key === p.key; })[0], st = it ? it.status : 'na'; // 依測點代號取狀態（無效列不在 rows 內）
         b += line(x, base, x, base - p.need * sz, 'guide') + circle(x, base - p.need * sz, 3, 'dot');
         if (isNum(p.m)) b += circle(x, base - p.m * sz, 6, 'pt ' + stCls(st));
-        b += text(x, base + 20, p.name, 'lbl sm');
+        b += text(x, Math.min(base + 20, H - 6), p.name, 'lbl sm');
       });
       b += text(W / 2, 20, '虛線＝應有高度；實心圓＝實測', 'lbl sm');
       return svg(W, H, b, '地坪洩水示意圖');
     }
-    var pts = f.pts || []; if (pts.length < 2) return svg(W, 80, text(W / 2, 40, '請輸入至少 2 個測點', 'lbl'), '洩水坡度');
+    // 測點須全部有距離與高程才出圖；不逐點過濾，以免區段顏色（f.seg）與點序錯位
+    var pts = f.pts || [];
+    if (f.msg) return svg(W, 80, text(W / 2, 40, f.msg, 'lbl'), '洩水坡度');
+    if (pts.length < 2 || pts.some(function (p) { return !isNum(p.x) || !isNum(p.z); })) return svg(W, 80, text(W / 2, 40, '請輸入至少 2 個測點的距離與讀數', 'lbl'), '洩水坡度');
     var xs = pts.map(function (p) { return p.x; }), zs = pts.map(function (p) { return p.z; });
     var minX = Math.min.apply(null, xs), maxX2 = Math.max.apply(null, xs), minZ = Math.min.apply(null, zs), maxZ2 = Math.max.apply(null, zs);
     var spanZ = Math.max(maxZ2 - minZ, (maxX2 - minX) * f.reqS, 1);
@@ -265,8 +273,8 @@
       var sg = f.seg ? f.seg[k - 1] : null;
       b += line(X(pts[k - 1].x), Z(pts[k - 1].z), X(pts[k].x), Z(pts[k].z), 'prof ' + stCls(sg ? sg.st : r.overall));
     }
-    pts.forEach(function (p) {
-      var pond = f.ponds && f.ponds.indexOf(p.name) >= 0;
+    pts.forEach(function (p, k) {
+      var pond = f.pondIdx ? f.pondIdx.indexOf(k) >= 0 : false; // 依點序，點名重複也不誤標
       b += circle(X(p.x), Z(p.z), pond ? 8 : 5, pond ? 'pt st-fail' : 'pt');
       b += text(X(p.x), Z(p.z) - 12, p.name, 'lbl sm') + text(X(p.x), 228, f1(p.x / 100) + 'm', 'lbl xs');
     });
