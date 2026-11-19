@@ -195,9 +195,9 @@
         { k: 'preset', t: 'sel', label: '用途', opts: D.SLOPE_PRESETS.map(function (p) { return [p.id, p.label]; }), def: 'custom' },
         { k: 'n', t: 'num', label: '規定坡度 1/n 的 n', unit: '', def: 100, hint: '例：1/100 填 100；1% = 1/100' },
         { k: 'L', t: 'num', label: '水平長度', unit: 'm', show: function (v) { return v.mode === 'forward'; } },
-        { k: 'method', t: 'seg', label: '量測方式', opts: [['tape', '捲尺'], ['level', '水準儀＋標尺'], ['elev', '直接輸入高程']], def: 'tape', show: function (v) { return v.mode === 'two' || v.mode === 'profile'; } },
+        { k: 'method', t: 'seg', label: '量測方式', opts: [['tape', '版下量（樓版→管頂）'], ['tapeUp', '管下量（管底→地坪）'], ['level', '水準儀＋標尺'], ['elev', '直接輸入高程']], def: 'tape', show: function (v) { return v.mode === 'two' || v.mode === 'profile'; } },
         { k: 'unit', t: 'seg', label: '讀數單位', opts: [['cm', 'cm'], ['mm', 'mm'], ['m', 'm']], def: 'cm', show: function (v) { return v.mode === 'two' || v.mode === 'profile'; },
-          hint: '捲尺：自水平基準線（水線）往下量，數字越大越低；水準儀：標尺讀數越大越低' },
+          hint: '版下量：自上方樓版（或水線）往下量至管頂，數字越大越低；管下量：自管底往下量至樓版（地坪），數字越大越高；水準儀：標尺讀數越大越低' },
         { t: 'h', label: '測點', show: function (v) { return v.mode !== 'forward'; } },
         { k: 'dist', t: 'num', label: 'A→B 水平距離', unit: 'm', show: function (v) { return v.mode === 'two'; } },
         { k: 'a', t: 'num', label: 'A 點（上游）讀數', unit: '@unit', show: function (v) { return v.mode === 'two'; } },
@@ -221,20 +221,29 @@
             overall: okL ? 'info' : 'na', derived: fw, fig: { pts: okL ? [{ name: '起點', x: 0, z: 0 }, { name: '終點', x: v.L * 100, z: -fw.drop }] : [], reqS: E.reqSlope(v.n), msg: okL ? '' : '請輸入正的水平長度' } };
         }
         if (v.mode === 'two') {
-          // 同一站讀兩點：捲尺與水準儀皆為「數字越大越低」
-          var z = v.method === 'elev' ? [v.a * unitCm, v.b * unitCm] : [-v.a * unitCm, -v.b * unitCm];
-          return E.slopeTwoPoint({ elevA: z[0], elevB: z[1], dist: v.dist * 100, n: v.n });
+          // 同一站讀兩點：版下量與水準儀為「數字越大越低」；管下量與直接高程為「數字越大越高」
+          var up = v.method === 'elev' || v.method === 'tapeUp';
+          var z = up ? [v.a * unitCm, v.b * unitCm] : [-v.a * unitCm, -v.b * unitCm];
+          return slabFig(E.slopeTwoPoint({ elevA: z[0], elevB: z[1], dist: v.dist * 100, n: v.n }), v);
         }
         if (v.mode === 'profile') {
           var filled = function (p, ks) { return ks.some(function (k) { return typeof p[k] === 'number'; }); }; // 換算前判斷是否有填
           var pts = (v.pts || []).map(function (p) { return { name: p.name || '?', x: num(p.x, 100), r: num(p.r, unitCm), bs: num(p.bs, unitCm), filled: filled(p, ['x', 'r', 'bs']) }; });
-          return E.slopeProfile({ method: v.method, n: v.n, points: pts });
+          return slabFig(E.slopeProfile({ method: v.method, n: v.n, points: pts }), v);
         }
         return E.slopeFloor({ n: v.n, points: (v.fpts || []).map(function (p) { return { name: p.name || '?', x: num(p.x, 100), m: num(p.m, 1), filled: typeof p.x === 'number' || typeof p.m === 'number' }; }) });
       },
       fig: G.slope, raw: true
     }
   ];
+  // 洩水坡度：捲尺量測時，圖面畫出量測基準的樓版（版下量＝上方樓版、管下量＝下方樓版／地坪），高程 0 即樓版
+  function slabFig(res, v) {
+    if (res && res.fig && (v.method === 'tape' || v.method === 'tapeUp')) {
+      res.fig.slab = v.method === 'tape' ? 'above' : 'below';
+      res.fig.unit = v.unit === 'mm' || v.unit === 'm' ? v.unit : 'cm';
+    }
+    return res;
+  }
 
   // ---------- 機電（src：判定依據來源，對應 data-mep.js SOURCES）----------
   var P = D.MEP;

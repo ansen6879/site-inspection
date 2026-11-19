@@ -413,13 +413,14 @@
       basis: '依圖說規定坡度 1/' + i.n, tolNote: '未列於 RC04-7，採 ±5%', note: s < -EPS ? '逆坡：B 點高於 A 點 ' + r1(-drop) + ' cm' : '落差 ' + r1(drop) + ' cm／距離 ' + r2(i.dist / 100) + ' m' })];
     return result(items, { drop: drop, slope: s }, { pts: [{ name: 'A', x: 0, z: i.elevA }, { name: 'B', x: i.dist, z: i.elevB }], reqS: reqS });
   }
-  // 讀數換算高程：method = elev／tape（基準線往下量，越大越低）／level（水準儀，第 0 點讀數視為後視）
+  // 讀數換算高程：method = elev／tape（版下量：樓版往下量至管頂，越大越低）／tapeUp（管下量：管底往下量至樓版，越大越高）／level（水準儀，第 0 點讀數視為後視）
   function toElevations(method, pts, startElev) {
     var z = [], HI = null;
     for (var k = 0; k < pts.length; k++) {
       var p = pts[k];
       if (method === 'elev') z.push(p.r);
       else if (method === 'tape') z.push(-p.r);
+      else if (method === 'tapeUp') z.push(p.r);
       else {
         if (k === 0) { z.push(isNum(startElev) ? startElev : 0); HI = z[0] + p.r; }
         else { z.push(HI - p.r); }

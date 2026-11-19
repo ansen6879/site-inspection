@@ -266,7 +266,20 @@
     var minX = Math.min.apply(null, xs), maxX2 = Math.max.apply(null, xs), minZ = Math.min.apply(null, zs), maxZ2 = Math.max.apply(null, zs);
     var spanZ = Math.max(maxZ2 - minZ, (maxX2 - minX) * f.reqS, 1);
     var X = function (x) { return 50 + (x - minX) / ((maxX2 - minX) || 1) * (W - 100); };
-    var Z = function (z) { return 40 + (maxZ2 - z) / spanZ * 150; };
+    // 捲尺量測：畫出量測基準的樓版（高程 0）。樓版至管的距離遠大於落差，故樓版位置不依比例，以尺寸線標讀數
+    var slab = f.slab === 'above' || f.slab === 'below' ? f.slab : '', top = slab === 'above' ? 95 : 40, hgt = slab ? 110 : 150;
+    var Z = function (z) { return top + (maxZ2 - z) / spanZ * hgt; };
+    if (slab) {
+      var uf = f.unit === 'mm' ? 10 : f.unit === 'm' ? 0.01 : 1, ul = f.unit === 'mm' || f.unit === 'm' ? f.unit : 'cm';
+      var sy = slab === 'above' ? 50 : 200; H = slab === 'above' ? 270 : 266;
+      var band = slab === 'above' ? rect(0, sy - 16, W, 16, 'conc') : rect(0, sy, W, 16, 'conc');
+      b += band + line(0, sy, W, sy, 'slabln') + text(8, slab === 'above' ? sy - 22 : sy + 34, slab === 'above' ? '樓版（量測基準）' : '樓版／地坪（量測基準）', 'lbl xs', 'start');
+      pts.forEach(function (p) {
+        var px = X(p.x), py = Z(p.z), rd = Math.abs(p.z) * uf, ry = (sy + py) / 2 + 5;
+        b += line(px, sy, px, py, 'guide') + line(px - 6, sy, px + 6, sy, 'dim');
+        b += text(px > W / 2 ? px - 6 : px + 6, ry, (Math.round(rd * 100) / 100) + ul, 'lbl xs', px > W / 2 ? 'end' : 'start');
+      });
+    }
     // 規定坡度參考線（自首點起）
     b += line(X(pts[0].x), Z(pts[0].z), X(maxX2), Z(pts[0].z - (maxX2 - pts[0].x) * f.reqS), 'guide');
     for (var k = 1; k < pts.length; k++) {
@@ -276,7 +289,8 @@
     pts.forEach(function (p, k) {
       var pond = f.pondIdx ? f.pondIdx.indexOf(k) >= 0 : false; // 依點序，點名重複也不誤標
       b += circle(X(p.x), Z(p.z), pond ? 8 : 5, pond ? 'pt st-fail' : 'pt');
-      b += text(X(p.x), Z(p.z) - 12, p.name, 'lbl sm') + text(X(p.x), 228, f1(p.x / 100) + 'm', 'lbl xs');
+      // 版下量：上方是讀數尺寸線，點名改放測點下方以免重疊
+      b += text(X(p.x), slab === 'above' ? Z(p.z) + 26 : Z(p.z) - 12, p.name, 'lbl sm') + text(X(p.x), H - 12, f1(p.x / 100) + 'm', 'lbl xs');
     });
     b += text(W - 10, 20, '垂直放大；虛線＝規定坡度', 'lbl xs', 'end');
     return svg(W, H, b, '洩水坡度縱斷面');
@@ -301,6 +315,7 @@
     '.fig .dim{stroke:var(--muted);stroke-width:1}',
     '.fig .guide{stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4;fill:none}',
     '.fig .prof{stroke-width:4;fill:none}',
+    '.fig .slabln{stroke:var(--line);stroke-width:2.5}',
     '.fig .pt{fill:var(--fg)}',
     '.fig .dot{fill:var(--muted)}',
     '.fig .drain{fill:var(--accent)}',
