@@ -1,11 +1,11 @@
 現場查驗小幫手 發佈檔
-版本：1.0.1
-BUILD：96ee3cf6a7b8
-建置時間：2026-11-21T17:12:01.143Z
+版本：1.0.2
+BUILD：9a165f2bb44b
+建置時間：2026-11-21T17:23:16.833Z
 
 檔案（SHA-256，文字檔以 LF、去除 BOM 計算）：
 a82db6db7a92eef0bc9cf84a9b9a76fa367c24c7a8ffec361dc8fb66e2b72bca  index.html
-0d3d5ca038b3cc49b93a6111faedde8e8fffc6e0596d8491a6a63a43354bff1b  version.js
+33a92c95ca6d1a3874a0de749ced9879ed087d5e65bf14e1f7d1866f819ea193  version.js
 03abf154cf68109c211c9b2e14de9faef971c8d954cf5af7e815bb9bb1f0fa31  manifest.webmanifest
 7f65e79f6775039a8c46b4622426f73d4c9657bf60ccbc9724607c2d1d9190af  css/app.css
 b56e8d4421265f4efde42ae5575c3ad3d9ca6a8538a1ffe752401d29b5a10288  js/data.js
@@ -20,6 +20,6 @@ a68fbf6f4ebf155d2cb7031a9fbdefba3099f4ace9e50369a56eb47724b6d79f  js/svg.js
 5fd59fdd742c87cbd1cfd1eba3b064a07121cf8b7c93a93dd6eb7a78b343323c  icons/icon-192.png
 0404e3e070cef185afc207aa5770195d03e44359ca0d6c3dc8cb75e707f7a80f  icons/icon-512.png
 9f885c4acf7c9ec14a0b6291583b69d87711c608e859dee36b98062378eb5841  icons/apple-touch-icon.png
-3b02766e983d379812e6b3cea67897bd3c6e1c6a8c888a2685f394d361a1cc17  sw.js（原始位元組）
+9616f8bc2306e15bf071b26bd24c8a83c6f1e166cbdd142dd84afda76157cfc4  sw.js（原始位元組）
 
 本資料夾由 tools/build_release.js 產生，請勿手動修改。

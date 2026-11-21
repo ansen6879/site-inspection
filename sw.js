@@ -7,10 +7,10 @@
  * BUILD、HASHES 與檔案內容不符時 tests/sw.test.js 會失敗。版本號仍只在使用者說「進版」時調整（version.js）。
  */
 importScripts('version.js');
-var BUILD = '96ee3cf6a7b8';
+var BUILD = '9a165f2bb44b';
 var HASHES = {
   'index.html': 'a82db6db7a92eef0bc9cf84a9b9a76fa367c24c7a8ffec361dc8fb66e2b72bca',
-  'version.js': '0d3d5ca038b3cc49b93a6111faedde8e8fffc6e0596d8491a6a63a43354bff1b',
+  'version.js': '33a92c95ca6d1a3874a0de749ced9879ed087d5e65bf14e1f7d1866f819ea193',
   'manifest.webmanifest': '03abf154cf68109c211c9b2e14de9faef971c8d954cf5af7e815bb9bb1f0fa31',
   'css/app.css': '7f65e79f6775039a8c46b4622426f73d4c9657bf60ccbc9724607c2d1d9190af',
   'js/data.js': 'b56e8d4421265f4efde42ae5575c3ad3d9ca6a8538a1ffe752401d29b5a10288',
