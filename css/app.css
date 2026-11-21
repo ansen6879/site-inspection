@@ -154,3 +154,6 @@ header.top h1:focus { outline: none; }
 }
 @media (min-width: 1100px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 input.bad{border-color:var(--fail)!important;box-shadow:0 0 0 2px var(--fail-bg,transparent)}
+.chknote { font-size: .9em; color: var(--muted); }
+/* 逾期警示：用一般文字色＋卡片底＋紅框，淺色、深色、高對比模式對比都足夠（Codex 審查 2026-11-22） */
+.chkwarn { color: var(--fg); background: var(--card); border: 2px solid var(--fail); border-left-width: 6px; border-radius: 8px; padding: 8px 10px; font-weight: 600; }

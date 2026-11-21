@@ -479,13 +479,41 @@
     return result(items, { rows: rows }, { rows: rows, reqS: reqS });
   }
 
+  // 判定依據每月定期確認：以最早的查核日期為準，下次確認＝加一個月（月底日不存在時取該月最後一天）；
+  // 超過下次確認日 14 天仍未更新，視為逾期（離線舊版或尚未發佈新查核結果時提醒使用者留意法規修正）
+  var CHECK_GRACE_DAYS = 14;
+  function ymd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  // 格式正確且日期確實存在（排除 2026-11-31、2026-02-30 等）
+  function validYmd(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+    if (!m) return false;
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3];
+  }
+  function addMonth(s) {
+    if (!validYmd(s)) return null;
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    var y = +m[1], mo = +m[2], d = +m[3];
+    var last = new Date(y, mo + 1, 0).getDate(); // 下個月的天數（mo 為 1 起算，new Date(y, mo, …) 即下個月）
+    return ymd(new Date(y, mo, Math.min(d, last)));
+  }
+  function basisCheck(today) {
+    var all = [D.SOURCES, D.MEP.SOURCES].map(function (o) { return Object.keys(o).map(function (k) { return o[k].checked; }); });
+    var dates = all[0].concat(all[1]).filter(validYmd).sort();
+    if (!dates.length) return { last: '', next: '', overdue: true };
+    var last = dates[0], next = addMonth(last);
+    var t = today instanceof Date ? today : new Date();
+    var lim = new Date(+next.slice(0, 4), +next.slice(5, 7) - 1, +next.slice(8, 10) + CHECK_GRACE_DAYS);
+    return { last: last, next: next, overdue: ymd(t) > ymd(lim) };
+  }
+
   SC.engine = {
     parseNum: parseNum, judgeMin: judgeMin, judgeMax: judgeMax, overall: overall, ceilCm: ceilCm, r1: r1, r2: r2, slopeText: slopeText,
     ldRaw: ldRaw, developmentLength: developmentLength, tensionLap: tensionLap, compressionLap: compressionLap,
     ldhSeismic: ldhSeismic, ldhGeneral: ldhGeneral, hookExtReq: hookExtReq, bendDiaReq: bendDiaReq,
     beamHole: beamHole, lap: lap, stirrup: stirrup, cover: cover, clearSpacing: clearSpacing, lapZone: lapZone,
     anchor: anchor, embed: embed, reqSlope: reqSlope, slopeForward: slopeForward, slopeTwoPoint: slopeTwoPoint, slopeProfile: slopeProfile,
-    slopeFloor: slopeFloor, toElevations: toElevations,
+    slopeFloor: slopeFloor, toElevations: toElevations, validYmd: validYmd, addMonth: addMonth, basisCheck: basisCheck,
     // 共用判定工具（機電模組 engine-mep.js 使用）
     _h: { isNum: isNum, mk: mk, minItem: minItem, maxItem: maxItem, boolItem: boolItem, infoItem: infoItem, result: result, EPS: EPS }
   };

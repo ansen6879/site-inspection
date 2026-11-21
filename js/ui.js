@@ -406,13 +406,20 @@
     app.appendChild(f);
   }
 
+  // 判定依據確認狀態：最近確認、下次確認；逾期時提醒
+  function checkNote() {
+    var c = SC.engine.basisCheck(new Date());
+    if (c.overdue) return '<p class="chkwarn" role="alert">⚠ 判定依據已超過一個月未確認（最近確認 ' + esc(c.last || '—') + '），法規可能已修正，請以最新法規條文為準；有網路時開啟本工具可取得最新版。</p>';
+    return '<p class="chknote">每月定期確認法規是否修正：最近確認 ' + esc(c.last) + '，下次確認 ' + esc(c.next) + '。</p>';
+  }
   function aboutView() {
     setTitle('說明與依據', true);
     var v = window.SC_VERSION || '';
     app.innerHTML = '<div class="prose">' +
-      '<h3>判定依據</h3><ul><li>' + esc(D.SOURCES.code.name) + '（' + esc(D.SOURCES.code.edition) + '），查核日期 ' + esc(D.SOURCES.code.checked) + '</li>' +
+      '<h3>判定依據（每月定期確認）</h3><ul><li>' + esc(D.SOURCES.code.name) + '（' + esc(D.SOURCES.code.edition) + '），查核日期 ' + esc(D.SOURCES.code.checked) + '</li>' +
       '<li>' + esc(D.SOURCES.ref.name) + ' ' + esc(D.SOURCES.ref.edition) + '：搭接、彎鉤、保護層、穿孔補強、梁柱配筋、許可差（表 RC04-7）</li>' +
       Object.keys(D.MEP.SOURCES).map(function (k) { var s = D.MEP.SOURCES[k]; return '<li>' + esc(s.name) + '（' + esc(s.edition) + '），查核日期 ' + esc(s.checked) + '</li>'; }).join('') + '</ul>' +
+      checkNote() +
       '<p>機電項目依法規條文判定，不套用許可差；無障礙規範未註明最大、最小或範圍之定值尺寸，依 103.1 誤差 3% 以內為合格。</p>' +
       '<h3>判定方式</h3><ul><li>✔ 合格：達到規定值</li><li>▲ 許可差內合格：未達規定值，但在 RC04-7 許可差內；RC04-7 未列的數值項目採 ±5%</li><li>✖ 不合格：超出許可差；彎鉤角度、號數等是非項目不套用許可差</li></ul>' +
       '<p>搭接長度以規範公式計算（無條件進位至 cm），並列出參考圖表值；兩者最多相差 2 cm。參考圖 RC05 梁箍筋間距仍為舊制，本工具依 112年版規範 18.3.4.4（d/4、15cm、6db）。</p>' +
